@@ -48,8 +48,24 @@ function ExcelUpload() {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+        // Get the column headers
+        const headers = [];
+        const range = XLSX.utils.decode_range(worksheet['!ref']); // Get the range of the worksheet
+        const firstRow = range.s.r; // Starting row of the range
+        const lastCol = range.e.c; // Last column of the range
+
+        for (let col = range.s.c; col <= lastCol; col++) {
+          const cellAddress = { c: col, r: firstRow }; // Create cell address for the header
+          const cell = worksheet[XLSX.utils.encode_cell(cellAddress)];
+          headers.push(cell ? cell.v : `Column ${col + 1}`); // Push the header value or default name
+        }
+
+        // Log the headers to the console
+        console.log('Headers:', headers);
+
           const json = XLSX.utils.sheet_to_json(worksheet);
-          resolve(json);
+          resolve( {json, headers} );
         } catch (error) {
           reject(error);
         }
@@ -186,9 +202,15 @@ function ExcelUpload() {
     event.preventDefault();
     if (file) {
       try {
-        const json = await handleConvert(file);
+        const {json, headers} = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsUptoFive.jsx', json);
+
+        const dataToSend = {
+          jsonData: json,
+          headers: headers
+        };
+
+        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsUptoFive.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -212,9 +234,15 @@ function ExcelUpload() {
     event.preventDefault();
     if (file) {
       try {
-        const json = await handleConvert(file);
+        const {json, headers} = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverFive.jsx', json);
+
+        const dataToSend = {
+          jsonData: json,
+          headers: headers
+        };
+
+        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverFive.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -238,9 +266,15 @@ function ExcelUpload() {
     event.preventDefault();
     if (file) {
       try {
-        const json = await handleConvert(file);
+        const {json, headers} = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverSeventy.jsx', json);
+
+        const dataToSend = {
+          jsonData: json,
+          headers: headers
+        };
+
+        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverSeventy.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);

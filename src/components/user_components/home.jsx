@@ -3,6 +3,7 @@ import axios from 'axios';
 import PdfComponentTemp from './pdfComponent';
 import { PDFViewer,pdf } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
+import emailjs from 'emailjs-com';
 
 
 function Home() {
@@ -18,6 +19,9 @@ function Home() {
     const [rate, setRate] = useState(null);
     const [ServiceProvider, setServiceProvider] = useState(null);
     const [SortedRateList, setSortedRateList] = useState([]);
+    const [firstRow, setfirstRow] = useState(null);
+    const [selectedRow, setSelectedRow] = useState('');
+    const [selectedRowIndex, setSelectedRowIndex] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showTable, setShowTable] = useState(false);
     const [totalActualWeight, setActualWeight] = useState(0);
@@ -28,6 +32,11 @@ function Home() {
     const date = currentDateTime.toISOString().split('T')[0];
     const time = currentDateTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM format
     const currentDate = `${date} ${time}`;
+    const [showDialogForCheapest, setShowDialogForCheapest] = useState(false);
+    const [showDialogForNonCheapest, setShowDialogForNonCheapest] = useState(false);
+    const [heading, setHeading] = useState('')
+    const [reason, setReason] = useState('');
+    const emailRef = useRef(null);
 
     const handleServiceChange = async (event) => {
         const value = event.target.value;
@@ -112,6 +121,7 @@ function Home() {
         
     };
 
+    //set weight when click
     const handleSetWeight = () => {
 
         let weightToSet;
@@ -120,7 +130,7 @@ function Home() {
                 weightToSet = totalActualWeight;
             } else if (totalActualWeight < totalVolumetricWeight) {
                 weightToSet = totalVolumetricWeight;
-            } else if (totalActualWeight == totalVolumetricWeight) {
+            } else if (totalActualWeight === totalVolumetricWeight) {
                 weightToSet = totalVolumetricWeight;
             }
     
@@ -134,14 +144,19 @@ function Home() {
         }
     }
 
+    //reset the table
     const handleResetTable = () => {
         resetTable('length','width','height','actualGrossWeight', 'volumetricWeight')
     }
 
-    const handleShowPDF = () => {
+    //preview pdf
+    const handleShowPDF = (e) => {
+        e.preventDefault();
         setShowDialog(true)
+        
     }
     
+    //assigning data to pdf component
     const pdfData = {
         referenceNumber: refNumber,
         deliveryType: selectedService,
@@ -155,7 +170,9 @@ function Home() {
         tableData: allRows,
         totalActualWeight: totalActualWeight, 
         totalVolumetricWeight: totalVolumetricWeight,
-        dateTime: currentDate
+        dateTime: currentDate,
+        selectedService: selectedRow.source,
+        reason: reason
     };
 
     //download pdf
@@ -164,7 +181,7 @@ function Home() {
         saveAs(blob, refNumber+'-'+selectedService+'-'+selectedRateType+'.pdf');
       };
     
-    //save pdf in DB
+    //add document to approved list
     const handleSavePdfToDb = async () => {
         try {
             const blob = await pdf(<PdfComponentTemp {...pdfData} />).toBlob();
@@ -175,7 +192,42 @@ function Home() {
                 const base64data = reader.result.split(',')[1]; // Get the base64 part of the data URL
                 console.log(base64data);
                 
-                const response = await axios.post('http://localhost:5000/api/saveNewPdf.jsx', {
+                const response = await axios.post('http://localhost:5000/api/addToApprovedList.jsx', {
+                    pdfData: base64data,
+                    refNumber,
+                    selectedService,
+                    selectedRateType,
+                    country,
+                    weight,
+                    currentDate
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+    
+                alert('Document added to approved list.');
+                setSelectedService('')
+                setShowDialogForCheapest(false);
+            };
+        } catch (error) {
+            console.error('Error saving PDF to DB:', error);
+            alert('Failed to upload file!');
+        }
+    };
+    
+    //add document to pending list
+    const handleSaveToPendingList = async () => {
+        try {
+            const blob = await pdf(<PdfComponentTemp {...pdfData} />).toBlob();
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            
+            reader.onloadend = async () => {
+                const base64data = reader.result.split(',')[1]; // Get the base64 part of the data URL
+                console.log(base64data);
+                
+                const response = await axios.post('http://localhost:5000/api/addToPendingList.jsx', {
                     pdfData: base64data,
                     refNumber,
                     selectedService,
@@ -190,25 +242,30 @@ function Home() {
                 });
     
                 console.log('JSON data sent to API successfully', response.data);
-                alert('File uploaded Successfully!');
+                alert('Document added to pending list.');
             };
         } catch (error) {
             console.error('Error saving PDF to DB:', error);
             alert('Failed to upload file!');
         }
     };
-    
-
 
     //table components for add package details
     const handleOpenTable = (event) => {
         setShowTable(true)
     };
 
+    //dialog box closings
     const handleCloseDialog = () => {
         setShowTable(false);
-        setShowDialog(false)
-      };
+        setShowDialog(false);
+    };
+
+    const handleCloseRateDialog = () => {
+        setShowDialogForCheapest(false);
+        setShowDialogForNonCheapest(false);
+        setReason('')
+    }
 
     const [rows, setRows] = useState([...Array(5)].map((_, index) => ({
         id: index + 1,
@@ -274,6 +331,7 @@ function Home() {
         })
     }
 
+    //clear all user inputs
     const resetTable = (columnName1,columnName2,columnName3,columnName4, columnName5) => {
         const newRows = rows.map(row => ({
             ...row,
@@ -286,6 +344,77 @@ function Home() {
         setRows(newRows);
     };
 
+
+    //for rate table
+
+    //get 1st row data from the sorted rate list
+        useEffect(() => {
+            if (SortedRateList.length > 0) {
+                const fRow = SortedRateList[0];
+                setfirstRow(fRow)
+                // Perform any operation with the first row data if needed
+                console.log('First row data:', fRow.source);
+            }
+        }, [SortedRateList]);
+
+    //get selected row data
+    const handleRowClick = (rate, index) => {
+        setSelectedRow(rate);
+        setSelectedRowIndex(index);
+        console.log(rate.source);
+        
+        if (index === 0) {
+            setHeading("*You've selected the cheapest rate provider  "+firstRow.source);
+            setShowDialogForCheapest(true);
+        } else {
+            setHeading("*You've chosen a service other than  "+firstRow.source);
+            setShowDialogForNonCheapest(true);
+        }
+        
+        
+      };
+    
+    //set reason
+    const handleReasonChange = (event) => {
+        setReason(event.target.value)
+    };
+
+    //for email
+    const [recipient, setRecipient] = useState('');
+    const [status, setStatus] = useState('');
+
+    //mail using emailjs
+    useEffect(() => {
+        emailjs.init("GR00gFFer1E53_WwK");
+      }, []);
+
+    const handleSendMail = async (e) => {
+        e.preventDefault();
+        const serviceId = "service_t1r0ydh";
+        const templateId = "template_crx3e4p";
+
+        try{
+            setLoading(true);
+            await emailjs.send(serviceId, templateId, {
+                recipient: emailRef.current.value,
+                reason: reason,
+                selectedService: selectedService,
+                firstRow: firstRow.source,
+                selectedServiceProvider: selectedRow.source
+              });
+              alert("Email successfully sent!");
+              handleSaveToPendingList();
+              handleCloseRateDialog();
+              setSelectedService('')
+            
+        } catch (error) {
+            setStatus('Error sending email')
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }    
+    }
+    
 
 
     //imports
@@ -875,21 +1004,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-5 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -991,7 +1121,7 @@ function Home() {
 	                                        </div>
                                         </div>
                                     </div>
-                                    ) : (SortedRateList.length > 0 && (
+                                ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
                                     <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
@@ -1004,21 +1134,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1134,21 +1265,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1259,21 +1391,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-5 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1376,7 +1509,7 @@ function Home() {
 	                                        </div>
                                         </div>
                                     </div>
-                                    ) : (SortedRateList.length > 0 && (
+                                ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
                                     <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
@@ -1389,21 +1522,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1518,21 +1652,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1643,21 +1778,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-5 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1760,7 +1896,7 @@ function Home() {
 	                                        </div>
                                         </div>
                                     </div>
-                                    ) : (SortedRateList.length > 0 && (
+                                ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
                                     <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
@@ -1773,21 +1909,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1903,21 +2040,22 @@ function Home() {
                                         <tbody>
                                             {SortedRateList.map((rate, key) => {
                                             return (
-                                                <tr key={key} className={key === 0 ? 'bg-yellow-100' : ''}>
-                                                    <td>{rate.source}</td>
-                                                    <td className='text-right'>{rate.rate.toFixed(2)}</td>
-                                                </tr>
+                                                <tr
+                                                key={key}
+                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                onClick={() => handleRowClick(rate, key)}
+                                                
+                                              >
+                                                <td>{rate.source}</td>
+                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
+                                              </tr>
                                             );
                                             })}
                                         </tbody>
                                     </table>
                                     
                                     </div>
-                                    <div>
-                                        <button onClick={handleShowPDF}>
-                                            <i className="fa-solid fa-print text-5xl translate-y-1/4 translate-x-5 p-2 bg-slate-300 hover:bg-slate-400 rounded" aria-hidden="true"></i>
-                                        </button>
-                                    </div>
+                                    
                                 </div>
                                     
 
@@ -1928,6 +2066,7 @@ function Home() {
                     </>
                 )}
             </div>
+
             {showTable && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
                 <div className="bg-white p-8 rounded shadow-md">
@@ -2029,36 +2168,183 @@ function Home() {
                     </div>
                 </div>
             </div>
-        )}
-        {showDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center h-screen pt-11">
-            <div className="relative w-full max-w-4xl h-auto bg-gray-100 rounded-lg shadow-lg pt-8">
-                <div className="absolute top-[45px] right-[63px] flex space-x-0 p-0">
-                    <label className="text-green-700 bg-[#323639] p-6">
-                    </label>
-                    <label className="text-red-700 bg-[#323639] p-6">
-                    </label>
-                </div>
-                <div className="absolute -top-[14px] right-0 flex space-x-1 p-2">
-                    <button className="text-green-700 rounded p-2" onClick={handleSavePdfToDb}>
-                        <i className="fa fa-download text-xl" aria-hidden="true"></i>
-                    </button>
-                    <button className="text-red-700 rounded p-2" onClick={handleCloseDialog}>
-                        <i className="fa fa-close text-2xl" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div className="w-full h-auto flex flex-col items-center justify-center">
+            )}
+
+            {showDialogForCheapest && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center h-screen pt-11" >
+                <div className="relative w-[500px] max-w-4xl h-auto bg-gray-100 rounded-lg shadow-lg pt-8">
+                    <div className='absolute top-[5px]'>
+                        <lable className="text-md ml-2">{heading}</lable>
+                    </div>
+                    <div className="absolute -top-[14px] right-0 flex space-x-1 p-2">
+                    
+                        <button className="text-red-700 rounded p-2" onClick={handleCloseRateDialog}>
+                            <i className="fa fa-close text-2xl" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                <div className="w-auto h-auto flex flex-col items-center justify-center">
                     <div className="bg-white p-1 shadow-lg rounded-lg w-full h-auto flex justify-center">
-                        <PDFViewer width="100%" height="100%" className="w-full h-[80vh] max-h-[600px]">
-                            <PdfComponentTemp {...pdfData} />
-                        </PDFViewer>
+                        <div className='flex-row'>
+                            
+                            <div className='flex pt-5 space-x-1'>
+                                <div className='flex-1'>
+                                    <button onClick={handleShowPDF} className='transition ease-in-out delay-150 duration-300 bg-green-50 hover:bg-green-100 rounded p-0 mb-3 text-md w-[190px] h-[60px]'>
+                                        <i className="fa-solid fa-file-pdf text-red-600 text-2xl pr-2 rounded" aria-hidden="true"></i>
+                                        Preview Document
+                                    </button>
+                                </div>
+                                <div className='flex-1'>
+                                    <button onClick={handleSavePdfToDb} className='transition ease-in-out delay-150 duration-300 bg-green-50 hover:bg-green-100 rounded p-0 mb-3 w-[190px] h-[60px]'>
+                                        <i className="fa-solid fa-download text-red-600 text-2xl pr-2 rounded" aria-hidden="true"></i>
+                                        Save
+                                    </button>
+                                </div>
+                                
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        )}
+            )}
 
+            {showDialogForNonCheapest && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center h-screen pt-11">
+                <div className="relative w-[500px] max-w-4xl h-auto bg-gray-100 rounded-lg shadow-lg pt-8">
+                    <div className='absolute top-[5px]'>
+                        <lable className="text-md ml-2">{heading}</lable>
+                    </div>
+                    <div className="absolute -top-[14px] right-0 flex space-x-1 p-2">
+                    
+                        <button className="text-red-700 rounded p-2" onClick={handleCloseRateDialog}>
+                            <i className="fa fa-close text-2xl" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div className="w-auto h-auto flex flex-col items-center justify-center">
+                        <div className="bg-white p-1 shadow-lg rounded-lg w-full h-auto flex justify-center">
+                            <div className='flex-row'>
+                                <div class="w-[390px] pt-4">
+                                    <div class="relative w-full min-w-[200px] h-12">
+                                        <input
+                                            class="peer w-full h-full bg-transparent text-blue-gray-700 font-sans 
+                                                font-normal outline outline-0 focus:outline-0 disabled:bg-blue-gray-50 
+                                                disabled:border-0 transition-all placeholder-shown:border 
+                                                placeholder-shown:border-blue-gray-200 placeholder-shown:border-t-blue-gray-200 
+                                                border focus:border-2 border-t-transparent focus:border-t-transparent text-sm 
+                                                px-3 py-2.5 rounded-[7px] border-blue-gray-200 focus:border-gray-900 bg-red-50"
+                                            placeholder=" "
+                                            value={reason} 
+                                            onChange={handleReasonChange} />
+                                            <label
+                                                class="flex w-full h-full select-none pointer-events-none absolute left-0 font-normal 
+                                                    !overflow-visible truncate peer-placeholder-shown:text-blue-gray-500 leading-tight 
+                                                    peer-focus:leading-tight peer-disabled:text-transparent peer-disabled:peer-placeholder-shown:text-blue-gray-500 
+                                                    transition-all -top-1.5 peer-placeholder-shown:text-sm text-[11px] peer-focus:text-[12px] 
+                                                    before:content[' '] before:block before:box-border before:w-2.5 before:h-1.5 before:mt-[6.5px] 
+                                                    before:mr-1 peer-placeholder-shown:before:border-transparent before:rounded-tl-md before:border-t 
+                                                    peer-focus:before:border-t-2 before:border-l peer-focus:before:border-l-2 before:pointer-events-none 
+                                                    before:transition-all peer-disabled:before:border-transparent after:content[' '] after:block after:flex-grow 
+                                                    after:box-border after:w-2.5 after:h-1.5 after:mt-[6.5px] after:ml-1 peer-placeholder-shown:after:border-transparent 
+                                                    after:rounded-tr-md after:border-t peer-focus:after:border-t-2 after:border-r peer-focus:after:border-r-2 after:pointer-events-none 
+                                                    after:transition-all peer-disabled:after:border-transparent peer-placeholder-shown:leading-[3.75] text-gray-500 peer-focus:text-gray-900 
+                                                    before:border-blue-gray-200 peer-focus:before:!border-gray-900 after:border-blue-gray-200 peer-focus:after:!border-gray-900">
+                                                        Tell us why?
+                                            </label>
+                                    </div>
+                                <div className=''>
+                                    <form>
+                                        <div flex-row>
+                                            <div>
+                                                <div class="relative w-full min-w-[200px] h-12 mt-3">
+                                                    <input
+                                                        class="peer w-full h-full bg-transparent text-blue-gray-700 font-sans 
+                                                                font-normal outline outline-0 focus:outline-0 disabled:bg-blue-gray-50 
+                                                                disabled:border-0 transition-all placeholder-shown:border 
+                                                                placeholder-shown:border-blue-gray-200 placeholder-shown:border-t-blue-gray-200 
+                                                                border focus:border-2 border-t-transparent focus:border-t-transparent text-sm 
+                                                                px-3 py-2.5 rounded-[7px] border-blue-gray-200 focus:border-gray-900 bg-red-50"
+                                                            placeholder=" "
+                                                            type="email"
+                                                            ref={emailRef}
+                                                            onChange={(e) => setRecipient(e.target.value)} />
+                                                        <label
+                                                            class="flex w-full h-full select-none pointer-events-none absolute left-0 font-normal 
+                                                                !overflow-visible truncate peer-placeholder-shown:text-blue-gray-500 leading-tight 
+                                                                peer-focus:leading-tight peer-disabled:text-transparent peer-disabled:peer-placeholder-shown:text-blue-gray-500 
+                                                                transition-all -top-1.5 peer-placeholder-shown:text-sm text-[11px] peer-focus:text-[12px] 
+                                                                before:content[' '] before:block before:box-border before:w-2.5 before:h-1.5 before:mt-[6.5px] 
+                                                                before:mr-1 peer-placeholder-shown:before:border-transparent before:rounded-tl-md before:border-t 
+                                                                peer-focus:before:border-t-2 before:border-l peer-focus:before:border-l-2 before:pointer-events-none 
+                                                                before:transition-all peer-disabled:before:border-transparent after:content[' '] after:block after:flex-grow 
+                                                                after:box-border after:w-2.5 after:h-1.5 after:mt-[6.5px] after:ml-1 peer-placeholder-shown:after:border-transparent 
+                                                                after:rounded-tr-md after:border-t peer-focus:after:border-t-2 after:border-r peer-focus:after:border-r-2 after:pointer-events-none 
+                                                                after:transition-all peer-disabled:after:border-transparent peer-placeholder-shown:leading-[3.75] text-gray-500 peer-focus:text-gray-900 
+                                                                before:border-blue-gray-200 peer-focus:before:!border-gray-900 after:border-blue-gray-200 peer-focus:after:!border-gray-900">
+                                                                    Email of the Authority
+                                                        </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className='flex pt-5 space-x-1'>
+                                            <div className='flex-1'>
+                                                <button 
+                                                    className='transition ease-in-out delay-150 bg-blue-50 hover:bg-blue-100 duration-300 rounded p-0 mb-3 w-[190px] h-[55px]'
+                                                    
+                                                    onClick={handleShowPDF}>
+                                                    <i className="fa-solid fa-file-pdf text-red-600 text-2xl pr-2 rounded" aria-hidden="true"></i>
+                                                        Preview Document
+                                                </button>
+                                            </div>
+                                            <div className='flex-1'>
+                                                <button 
+                                                    className='transition ease-in-out delay-150 bg-blue-50 hover:bg-blue-100 duration-300 rounded p-0 mb-3 w-[190px] h-[55px]'
+                                                    type='submit'
+                                                    onClick={handleSendMail}>
+                                        
+                                                    <i className="fa-solid fa-file-signature text-red-600 text-2xl pr-2 rounded" aria-hidden="true"></i>
+                                                        Ask for Approval
+                                                </button>
+                                            </div>
+                                        </div>
 
+                                    </form>
+                                    {status && <p>{status}</p>}
+                                </div>
+                            </div> 
+                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+            )}
+
+            {/* viewing generated pdf */}
+            {showDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center h-screen pt-11">
+                <div className="relative w-full max-w-4xl h-auto bg-gray-100 rounded-lg shadow-lg pt-8">
+                    <div className="absolute top-[45px] right-[63px] flex space-x-0 p-0">
+                        <label className="bg-[#323639] p-6">
+                        </label>
+                        <label className="bg-[#323639] p-6">
+                        </label>
+                    </div>
+                    <div className="absolute -top-[14px] right-0 flex space-x-1 p-2">
+                    
+                        <button className="text-red-700 rounded p-2" onClick={handleCloseDialog}>
+                            <i className="fa fa-close text-2xl" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div className="w-full h-auto flex flex-col items-center justify-center">
+                        <div className="bg-white p-1 shadow-lg rounded-lg w-full h-auto flex justify-center">
+                            <PDFViewer width="100%" height="100%" className="w-full h-[80vh] max-h-[600px]">
+                                <PdfComponentTemp {...pdfData} />
+                            </PDFViewer>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            )}
         </div>
     );
 }

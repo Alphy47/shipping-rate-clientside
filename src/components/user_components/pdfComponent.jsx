@@ -3,7 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/render
 import Blogo from '../../assets/blogo.png';
 
 
-const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country, weight, services, tableData, totalActualWeight, totalVolumetricWeight, dateTime }) => (
+const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country, weight, services, tableData, totalActualWeight, totalVolumetricWeight, dateTime, selectedService, reason }) => (
     <Document>
         <Page size="A4" style={styles.page}>
             <View style={styles.header}>
@@ -16,6 +16,8 @@ const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country,
                 <Text style={styles.label}>Type of Package: {packageType}</Text>
                 <Text style={styles.label}>Country: {country}</Text>
                 <Text style={styles.label}>Total Weight: {weight}Kg</Text>
+                <Text style={styles.label}>Selected Service: {selectedService}</Text>
+                {reason && <Text style={styles.label}>Reason to not select the cheapest service: {reason}</Text>}
             </View>
             <View style={styles.table}>
                 <View style={styles.tableRow}>
