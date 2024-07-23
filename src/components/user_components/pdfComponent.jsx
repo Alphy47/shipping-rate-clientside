@@ -8,7 +8,10 @@ const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country,
         <Page size="A4" style={styles.page}>
             <View style={styles.header}>
                 <Image src={Blogo} style={styles.logo} />
+                <View style={styles.container}>
                 <Text style={styles.headerText}>Shipping Rates</Text>
+                <View style={styles.underline} />
+            </View>
             </View>
             <View style={styles.section}>
                 <Text style={styles.label}>Ref. Number: {referenceNumber}</Text>
@@ -78,14 +81,25 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     logo: {
-        width: 80,
+        width: 100,
         height: 80,
     },
+    container: {
+        alignItems: 'center',
+        marginVertical: 40, // Adjust spacing as needed
+      },
     headerText: {
-        textAlign: 'center',
+        textAlign: 'right',
         fontSize: 24,
         fontWeight: 'bold',
     },
+    underline: {
+        marginTop: 2, // Space between text and underline
+        width: '290%', // Adjust width as needed
+        height: 4, // Underline height
+        backgroundColor: 'black', // Underline color
+        paddingRight: 5,
+      },
     section: {
         marginBottom: 20,
         padding: 10,

@@ -117,7 +117,7 @@ function AuthorityView() {
     <div className="flex flex-col justify-center items-center h-screen text-black pt-16">
         <div className="flex flex-col items-center space-y-4 bg-white bg-opacity-85 p-8 rounded-lg w-70%">
         <label className='text-2xl'>Giving Athorization</label>
-            <div className="w-full max-h-[500px] overflow-y-auto">
+            <div className="w-full max-h-[400px] overflow-y-auto">
                 <table className="table-fixed bg-[#b2aeff] bg-opacity-10 w-70%">
                     <thead className='sticky top-0'>
                         <tr className="border-b border-neutral-200 bg-[#cccccc] font-medium text-black dark:border-white/10">

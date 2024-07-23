@@ -408,7 +408,7 @@ function Home() {
               setSelectedService('')
             
         } catch (error) {
-            setStatus('Error sending email')
+            alert('Error sending email')
             console.log(error);
         } finally {
             setLoading(false);
