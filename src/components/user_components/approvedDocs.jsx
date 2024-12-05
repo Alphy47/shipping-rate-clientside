@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import API_BASE_URL from './envirenment';
 
 function ApprovedDocs() {
     const [docsTable, setDocsTable] = useState([]);
 
     const getPdfTable = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/selectPDFs', {
+            const response = await fetch(API_BASE_URL+'selectPDFs', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -35,7 +35,7 @@ function ApprovedDocs() {
         const newTrackingNumber = event.target.value;
 
         try {
-            const response = await fetch('http://localhost:5000/api/updateTrackingNumber', {
+            const response = await fetch(API_BASE_URL+'updateTrackingNumber', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

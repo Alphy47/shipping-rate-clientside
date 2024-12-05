@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
+import API_BASE_URL from './envirenment';
 
 function DisapprovedDocs() {
 
@@ -10,7 +11,7 @@ function DisapprovedDocs() {
     const getPdfTable = async (event) => {
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectDisapprovedList', {
+            const response = await fetch(API_BASE_URL+'selectDisapprovedList', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

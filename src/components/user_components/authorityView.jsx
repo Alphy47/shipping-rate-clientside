@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
+import API_BASE_URL from './envirenment';
 
 function AuthorityView() {
     const [docsTable, setDocsTable] = useState([]);
@@ -24,7 +25,7 @@ function AuthorityView() {
     const getPdfTable = async (event) => {
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectPendingList', {
+            const response = await fetch(API_BASE_URL+'selectPendingList', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -59,7 +60,7 @@ function AuthorityView() {
       };
     
       try {
-        const response = await fetch('http://localhost:5000/api/updatePendingToApproved', {
+        const response = await fetch(API_BASE_URL+'updatePendingToApproved', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -87,7 +88,7 @@ function AuthorityView() {
       };
     
       try {
-        const response = await fetch('http://localhost:5000/api/updatePendingToDisapproved', {
+        const response = await fetch(API_BASE_URL+'updatePendingToDisapproved', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

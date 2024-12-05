@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
-import { PiNutFill } from 'react-icons/pi';
-
+import API_BASE_URL from './envirenment';
 
 function ExcelUpload() {
   const [selectedOption, setSelectedOption] = useState('');
@@ -12,6 +11,10 @@ function ExcelUpload() {
   const [message, setMessage] = useState('');
   const [showMessageDialog, setShowMessageDialog] = useState(false);
   const fileInputRef = useRef(null);
+  const [fuelCost, setFuelCost] = useState('');
+  const [currentUPSFuelRate, setcurrentUPSFuelRate] = useState('')
+  const [currentFedexFuelRate, setcurrentFedexFuelRate] = useState('')
+  const [currentDHLFuelRate, setcurrentDHLFuelRate] = useState('')
 
   const handleSelectChange = (event) => {
     setSelectedOption(event.target.value);
@@ -23,6 +26,7 @@ function ExcelUpload() {
     setFile(null);
     setJsonData(null);
     setSelectedOption('')
+    setFuelCost('')
     if (selectedOption.current){
       selectedOption.current.value=null
     }
@@ -75,7 +79,6 @@ function ExcelUpload() {
     });
   };
   
-
   const downloadTemplate = (filePath, fileName) => {
     const link = document.createElement('a');
     link.href = process.env.PUBLIC_URL + filePath;
@@ -84,6 +87,12 @@ function ExcelUpload() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const handleInputChange = (e) => {
+    setFuelCost(e.target.value);
+  };
+
+
 
   /////////
   //-UPS-//
@@ -101,7 +110,7 @@ function ExcelUpload() {
           alert('Error: No valid JSON data found.');
         } else {
 
-        const response = await axios.post('http://localhost:5000/api/uploadUPSZones.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSZones.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         alert('File uploaded Successfully!');
         }
@@ -126,7 +135,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSExportsUptoFive.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSExportsUptoFive.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -152,7 +161,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSExportsOverFive.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSExportsOverFive.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -178,7 +187,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSExportsOverSeventy.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSExportsOverSeventy.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -209,8 +218,8 @@ function ExcelUpload() {
           jsonData: json,
           headers: headers
         };
-
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsUptoFive.jsx', dataToSend);
+        console.log(dataToSend);
+        const response = await axios.post(API_BASE_URL+'uploadUPSSpecialExportsUptoFive.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -242,7 +251,7 @@ function ExcelUpload() {
           headers: headers
         };
 
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverFive.jsx', dataToSend);
+        const response = await axios.post(API_BASE_URL+'uploadUPSSpecialExportsOverFive.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -274,7 +283,7 @@ function ExcelUpload() {
           headers: headers
         };
 
-        const response = await axios.post('http://localhost:5000/api/uploadUPSSpecialExportsOverSeventy.jsx', dataToSend);
+        const response = await axios.post(API_BASE_URL+'uploadUPSSpecialExportsOverSeventy.jsx', dataToSend);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -300,7 +309,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSImportsUptoFive.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSImportsUptoFive.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -326,7 +335,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSImportsOverFive.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSImportsOverFive.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -352,7 +361,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadUPSImportsOverSeventy.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadUPSImportsOverSeventy.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -371,6 +380,143 @@ function ExcelUpload() {
     }
   };
 
+  //for UPS fuel cost
+  const handleUPSFuelCostChange = async (event) => {
+    event.preventDefault(); // Prevent default form submission behavior
+  
+    console.log('Fuel Cost:', fuelCost);
+    
+    if (fuelCost === '' || (fuelCost >= 0 && fuelCost <= 100)) {
+      try {
+        // Prepare the JSON payload
+        const payload = {
+          fuelCost: fuelCost.toString(), // Ensure fuelCost is a string as expected by the API
+          service: "UPS" // Service is hardcoded to "UPS"
+        };
+        
+        // Send the data to the API using axios
+        const response = await axios.post(API_BASE_URL + 'updateFuelCost', payload);
+  
+        if (response.status === 200) {
+          alert("Fuel Cost Value Updated.");
+          getFuelCost(); // Refresh the fuel cost value
+          setFuelCost(''); // Clear the input field
+        } else {
+          throw new Error('Network response was not OK');
+        }
+  
+      } catch (error) {
+        console.error('Error updating fuel cost:', error);
+      }
+    } else {
+      alert("Please Enter Valid Range (0 - 100)%");
+    }
+  };
+  
+
+  //for DHL fuel cost
+  const handleDHLFuelCostChange = async(event) => {
+    event.preventDefault(); // Prevent default form submission behavior
+  
+    console.log('Fuel Cost:', fuelCost);
+    
+    if (fuelCost === '' || (fuelCost >= 0 && fuelCost <= 100)) {
+      try {
+        // Prepare the JSON payload
+        const payload = {
+          fuelCost: fuelCost.toString(), // Ensure fuelCost is a string as expected by the API
+          service: "DHL"
+        };
+        
+        // Send the data to the API using axios
+        const response = await axios.post(API_BASE_URL + 'updateFuelCost', payload);
+  
+        if (response.status === 200) {
+          alert("Fuel Cost Value Updated.");
+          getFuelCost(); // Refresh the fuel cost value
+          setFuelCost(''); // Clear the input field
+        } else {
+          throw new Error('Network response was not OK');
+        }
+  
+      } catch (error) {
+        console.error('Error updating fuel cost:', error);
+      }
+    } else {
+      alert("Please Enter Valid Range (0 - 100)%");
+    }
+};
+
+  //for Fedex fuel cost
+  const handleFedexFuelCostChange = async(event) => {
+    event.preventDefault(); // Prevent default form submission behavior
+  
+    console.log('Fuel Cost:', fuelCost);
+    
+    if (fuelCost === '' || (fuelCost >= 0 && fuelCost <= 100)) {
+      try {
+        // Prepare the JSON payload
+        const payload = {
+          fuelCost: fuelCost.toString(), // Ensure fuelCost is a string as expected by the API
+          service: "FeDex" 
+        };
+        
+        // Send the data to the API using axios
+        const response = await axios.post(API_BASE_URL + 'updateFuelCost', payload);
+  
+        if (response.status === 200) {
+          alert("Fuel Cost Value Updated.");
+          getFuelCost(); // Refresh the fuel cost value
+          setFuelCost(''); // Clear the input field
+        } else {
+          throw new Error('Network response was not OK');
+        }
+  
+      } catch (error) {
+        console.error('Error updating fuel cost:', error);
+      }
+    } else {
+      alert("Please Enter Valid Range (0 - 100)%");
+    }
+};
+
+  //get all Fuel Cost data
+  const getFuelCost = async() => {
+
+      try {
+        const response = await fetch(API_BASE_URL+'selectFuelCost', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not OK');
+        } else {
+          
+          const data = await response.json();
+          console.log("methana:",data);
+          console.log(currentUPSFuelRate);
+          console.log(currentDHLFuelRate);
+          console.log(currentFedexFuelRate);
+
+          const upsFuelCost = data.find(item => item.Dservice === 'UPS');
+          setcurrentUPSFuelRate(upsFuelCost.fuelCost)
+            
+          const fedexFuelCost = data.find(item => item.Dservice === 'FeDex');
+          setcurrentFedexFuelRate(fedexFuelCost.fuelCost)
+
+          const dhlFuelCost = data.find(item => item.Dservice === 'DHL');
+          setcurrentDHLFuelRate(dhlFuelCost.fuelCost)
+        }
+
+    } catch (error) {
+        console.error('Error updating fuel cost.', error);
+    }
+
+};
+
 
   /////////
   //-DHL-//
@@ -383,7 +529,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLZones.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLZones.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -409,7 +555,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLExportsUptoTwo.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLExportsUptoTwo.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -435,7 +581,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLExportsOverTwo.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLExportsOverTwo.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -461,7 +607,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLExportsOverThirty.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLExportsOverThirty.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -487,7 +633,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLEComExportsOverPointFive.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLEComExportsOverPointFive.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -513,7 +659,7 @@ function ExcelUpload() {
         try {
           const json = await handleConvert(file);
           console.log(json);
-          const response = await axios.post('http://localhost:5000/api/uploadDHLEComExportsOverThirty.jsx', json);
+          const response = await axios.post(API_BASE_URL+'uploadDHLEComExportsOverThirty.jsx', json);
           console.log('JSON data sent to API successfully', response.data);
           // setMessage('File uploaded Successfully!');
           // setShowMessageDialog(true);
@@ -539,7 +685,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadDHLImportsUptoTwo.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadDHLImportsUptoTwo.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -565,7 +711,7 @@ function ExcelUpload() {
         try {
           const json = await handleConvert(file);
           console.log(json);
-          const response = await axios.post('http://localhost:5000/api/uploadDHLImportsOverTwo.jsx', json);
+          const response = await axios.post(API_BASE_URL+'uploadDHLImportsOverTwo.jsx', json);
           console.log('JSON data sent to API successfully', response.data);
           // setMessage('File uploaded Successfully!');
           // setShowMessageDialog(true);
@@ -591,7 +737,7 @@ function ExcelUpload() {
         try {
           const json = await handleConvert(file);
           console.log(json);
-          const response = await axios.post('http://localhost:5000/api/uploadDHLImportsOverThirty.jsx', json);
+          const response = await axios.post(API_BASE_URL+'uploadDHLImportsOverThirty.jsx', json);
           console.log('JSON data sent to API successfully', response.data);
           // setMessage('File uploaded Successfully!');
           // setShowMessageDialog(true);
@@ -622,7 +768,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexZones.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexZones.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -648,7 +794,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexExportsDocument.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexExportsDocument.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -674,7 +820,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexExportsPackage.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexExportsPackage.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -700,7 +846,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexExportsSample.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexExportsSample.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -726,7 +872,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexEComExportsDocument.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexEComExportsDocument.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -752,7 +898,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexEComExportsPackage.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexEComExportsPackage.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -778,7 +924,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexEComExportsSample.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexEComExportsSample.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -804,7 +950,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexImportsDocument.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexImportsDocument.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -830,7 +976,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexImportsPackage.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexImportsPackage.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -856,7 +1002,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexImportsSample.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexImportsSample.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -883,7 +1029,7 @@ function ExcelUpload() {
       try {
         const json = await handleConvert(file);
         console.log(json);
-        const response = await axios.post('http://localhost:5000/api/uploadFedexImportsOverThirty.jsx', json);
+        const response = await axios.post(API_BASE_URL+'uploadFedexImportsOverThirty.jsx', json);
         console.log('JSON data sent to API successfully', response.data);
         // setMessage('File uploaded Successfully!');
         // setShowMessageDialog(true);
@@ -902,6 +1048,10 @@ function ExcelUpload() {
     }
     // window.location.reload();
   };
+
+  useEffect(() => {
+    getFuelCost();
+  }, []);
 
   const renderDialogContent = () => {
     switch (selectedOption) {
@@ -998,6 +1148,7 @@ function ExcelUpload() {
                   <option value="Special Export Rates Over Five">Documents over 5Kg and Packages</option>
                   <option value="Special Export Rates Over Seventy">Over 70Kg Packages</option>
                 </select><br />
+                
               {/* <input className="text-black p-1 rounded border border-black" type="file" />
               <button type="submit" className="ml-2 mt-1 p-2 bg-green-500 text-white rounded">Upload</button> */}
             </form>
@@ -1023,11 +1174,43 @@ function ExcelUpload() {
             <option value="Import Rates Over Five">Documents over 5Kg and Packages</option>
             <option value="Import Rates Over Seventy">Over 70Kg Packages</option>
           </select><br />
-              {/* <input className="text-black p-1 rounded border border-black" type="file" />
-              <button type="submit" className="ml-2 mt-1 p-2 bg-green-500 text-white rounded">
-                Upload
-              </button> */}
+              
             </form>
+
+            {/* UPS Fuel Cost */}
+              <div>
+              <h1 className="mt-4 font-semibold">UPS Fuel cost (%)</h1>
+              <input
+                  type="number"
+                  value={currentUPSFuelRate}
+                  disabled="true"
+                  className="text-black 
+                    w-[175px]
+                    mr-2
+                    p-2 
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <input
+                  type="number"
+                  value={fuelCost}
+                  onChange={handleInputChange}
+                  className="text-black 
+                    p-2 
+                    w-[175px]
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <button onClick={handleUPSFuelCostChange} className="mt-1 ml-3 p-2 bg-violet-50 text-violet-700 hover:bg-violet-100 rounded">
+                  Set Value
+                </button>
+              </div>
           </div>
         );
 
@@ -1536,6 +1719,41 @@ function ExcelUpload() {
               <option value="DHL Import Rates over 30Kg">Packages over 30Kg</option>
             </select><br />
               </form>
+
+              {/* dhl Fuel Cost */}
+              <div>
+              <h1 className="mt-4 font-semibold">DHL Fuel cost (%)</h1>
+              <input
+                  type="number"
+                  value={currentDHLFuelRate}
+                  disabled="true"
+                  className="text-black 
+                    w-[175px]
+                    mr-2
+                    p-2 
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <input
+                  type="number"
+                  value={fuelCost}
+                  onChange={handleInputChange}
+                  className="text-black 
+                    p-2 
+                    w-[175px]
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <button onClick={handleDHLFuelCostChange} className="mt-1 ml-3 p-2 bg-violet-50 text-violet-700 hover:bg-violet-100 rounded">
+                  Set Value
+                </button>
+              </div>
             </div>
           );
 
@@ -2000,6 +2218,41 @@ function ExcelUpload() {
                         <option value="Fedex Imports Over 30Kg">FeDex Import Over 30Kg</option>
                       </select><br />
                         </form>
+
+                        {/* fedex Fuel Cost */}
+                        <div>
+              <h1 className="mt-4 font-semibold">FeDex Fuel cost (%)</h1>
+              <input
+                  type="number"
+                  value={currentFedexFuelRate}
+                  disabled="true"
+                  className="text-black 
+                    w-[175px]
+                    mr-2
+                    p-2 
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <input
+                  type="number"
+                  value={fuelCost}
+                  onChange={handleInputChange}
+                  className="text-black 
+                    p-2 
+                    w-[175px]
+                    border-violet-700 
+                    bg-violet-50 
+                    focus:border-violet-700 
+                    focus:bg-violet-60 
+                    transition-colors "
+                />
+                <button onClick={handleFedexFuelCostChange} className="mt-1 ml-3 p-2 bg-violet-50 text-violet-700 hover:bg-violet-100 rounded">
+                  Set Value
+                </button>
+                        </div>
                       </div>
                     );
 
@@ -2439,6 +2692,7 @@ function ExcelUpload() {
   };
 
   return (
+
     <div className="flex flex-col justify-center items-center h-screen text-black pt-16">
       <div className="flex flex-col items-center space-y-4 bg-white bg-opacity-85 p-8 rounded-lg w-1/3">
         <div className=''>

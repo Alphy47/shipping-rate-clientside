@@ -4,7 +4,7 @@ import PdfComponentTemp from './pdfComponent';
 import { PDFViewer,pdf } from '@react-pdf/renderer';
 import { saveAs } from 'file-saver';
 import emailjs from 'emailjs-com';
-
+import API_BASE_URL from './envirenment';
 
 function Home() {
     const [selectedService, setSelectedService] = useState('');
@@ -37,6 +37,11 @@ function Home() {
     const [heading, setHeading] = useState('')
     const [reason, setReason] = useState('');
     const emailRef = useRef(null);
+    const [currentUPSFuelRate, setcurrentUPSFuelRate] = useState('')
+    const [currentFedexFuelRate, setcurrentFedexFuelRate] = useState('')
+    const [currentDHLFuelRate, setcurrentDHLFuelRate] = useState('')
+    const [selectedServiceProvider, setSelectedServiceProvider] = useState(null);
+
 
     const handleServiceChange = async (event) => {
         const value = event.target.value;
@@ -79,7 +84,7 @@ function Home() {
 
     const fetchUPSZones = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/selectAllUPSZones');
+            const response = await axios.get(API_BASE_URL+'selectAllUPSZones');
             setCountries(response.data.data);
             // console.log(response.data.data.map((item) => item.Country))
         } catch (error) {
@@ -89,7 +94,7 @@ function Home() {
 
     const fetchUPSSpecialCountries = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/selectAllUPSSpecialCountries');
+            const response = await axios.get(API_BASE_URL+'selectAllUPSSpecialCountries');
             setSpecialCountries(response.data.data);
             console.log('Special Countries: ',response.data.data)
         } catch (error) {
@@ -121,6 +126,40 @@ function Home() {
         
     };
 
+      //get all Fuel Cost data
+      const getFuelCost = async() => {
+
+        try {
+          const response = await fetch(API_BASE_URL+'selectFuelCost', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+          });
+  
+          if (!response.ok) {
+              throw new Error('Network response was not OK');
+          } else {
+            
+            const data = await response.json();
+            console.log(data);
+  
+            const upsFuelCost = data.find(item => item.Dservice === 'UPS');
+            setcurrentUPSFuelRate(upsFuelCost.fuelCost)
+              
+            const fedexFuelCost = data.find(item => item.Dservice === 'FeDex');
+            setcurrentFedexFuelRate(fedexFuelCost.fuelCost)
+  
+            const dhlFuelCost = data.find(item => item.Dservice === 'DHL');
+            setcurrentDHLFuelRate(dhlFuelCost.fuelCost)
+          }
+  
+      } catch (error) {
+          console.error('Error updating fuel cost.', error);
+      }
+  
+  };
+
     //set weight when click
     const handleSetWeight = () => {
 
@@ -149,12 +188,17 @@ function Home() {
         resetTable('length','width','height','actualGrossWeight', 'volumetricWeight')
     }
 
-    //preview pdf
-    const handleShowPDF = (e) => {
-        e.preventDefault();
-        setShowDialog(true)
-        
+// Preview PDF
+const handleShowPDF = (e) => {
+    e.preventDefault();
+
+    if (refNumber === '') {
+        alert('Reference number is required.');
+        return; // Stop further execution if refNumber is empty
     }
+
+    setShowDialog(true);
+};
     
     //assigning data to pdf component
     const pdfData = {
@@ -163,15 +207,37 @@ function Home() {
         packageType: selectedRateType,
         country: country,
         weight: weight,
-        services: SortedRateList.map((rate, key) => ({
-            name: rate.source,
-            rate: rate.rate.toFixed(2)
-        })),
+        services: SortedRateList.map((rate) => {
+            let fuelCost;
+            let tot;
+    
+            // Determine the fuel cost based on the source
+            if (rate.source === 'UPS') {
+                fuelCost = currentUPSFuelRate;
+                tot = (((rate.rate)*(currentUPSFuelRate/100))+(rate.rate)).toFixed(2);
+            } else if (rate.source === 'DHL') {
+                fuelCost = currentDHLFuelRate;
+                tot = (((rate.rate)*(currentDHLFuelRate/100))+(rate.rate)).toFixed(2);
+            } else if (rate.source === 'FedEx') {
+                fuelCost = currentFedexFuelRate;
+                tot = (((rate.rate)*(currentFedexFuelRate/100))+(rate.rate)).toFixed(2);
+            } else {
+                fuelCost = 'N/A';
+                tot = 'N/A';
+            }
+    
+            return {
+                name: rate.source,
+                rate: rate.rate.toFixed(2),
+                fuelCost,
+                tot
+            };
+        }),
         tableData: allRows,
         totalActualWeight: totalActualWeight, 
         totalVolumetricWeight: totalVolumetricWeight,
         dateTime: currentDate,
-        selectedService: selectedRow.source,
+        selectedService: selectedRow,
         reason: reason
     };
 
@@ -192,7 +258,7 @@ function Home() {
                 const base64data = reader.result.split(',')[1]; // Get the base64 part of the data URL
                 console.log(base64data);
                 
-                const response = await axios.post('http://localhost:5000/api/addToApprovedList.jsx', {
+                const response = await axios.post(API_BASE_URL+'addToApprovedList.jsx', {
                     pdfData: base64data,
                     refNumber,
                     selectedService,
@@ -227,7 +293,7 @@ function Home() {
                 const base64data = reader.result.split(',')[1]; // Get the base64 part of the data URL
                 console.log(base64data);
                 
-                const response = await axios.post('http://localhost:5000/api/addToPendingList.jsx', {
+                const response = await axios.post(API_BASE_URL+'addToPendingList.jsx', {
                     pdfData: base64data,
                     refNumber,
                     selectedService,
@@ -331,7 +397,7 @@ function Home() {
         })
     }
 
-    //clear all user inputs
+    //clear all user inputs for table
     const resetTable = (columnName1,columnName2,columnName3,columnName4, columnName5) => {
         const newRows = rows.map(row => ({
             ...row,
@@ -358,10 +424,10 @@ function Home() {
         }, [SortedRateList]);
 
     //get selected row data
-    const handleRowClick = (rate, index) => {
-        setSelectedRow(rate);
+    const handleRowClick = (service, index) => {
+        setSelectedRow(service.name);
+        setSelectedServiceProvider(service.name);
         setSelectedRowIndex(index);
-        console.log(rate.source);
         
         if (index === 0) {
             setHeading("*You've selected the cheapest rate provider  "+firstRow.source);
@@ -383,9 +449,10 @@ function Home() {
     const [recipient, setRecipient] = useState('');
     const [status, setStatus] = useState('');
 
-    //mail using emailjs
+    //mail using emailjs and recieve fuel cost data from the begining
     useEffect(() => {
         emailjs.init("GR00gFFer1E53_WwK");
+        getFuelCost()
       }, []);
 
     const handleSendMail = async (e) => {
@@ -400,7 +467,7 @@ function Home() {
                 reason: reason,
                 selectedService: selectedService,
                 firstRow: firstRow.source,
-                selectedServiceProvider: selectedRow.source
+                selectedServiceProvider: selectedServiceProvider
               });
               alert("Email successfully sent!");
               handleSaveToPendingList();
@@ -422,8 +489,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false);
             return;
         } else {
@@ -431,10 +498,9 @@ function Home() {
                 country: country,
                 weight: weight
             };
-            console.log(data);
     
             try{
-                const response = await fetch('http://localhost:5000/api/selectImportDocuments', {
+                const response = await fetch(API_BASE_URL+'selectImportDocuments', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -447,15 +513,10 @@ function Home() {
                 }
     
                 const result = await response.json();
-                console.log(result.source);
-                console.log(result.rate);
-                console.log(result.rateList);
     
                 const RateList = result.rateList
     
                 RateList.sort((a, b) => a.rate - b.rate);
-    
-                console.log(RateList);
     
     
                 setServiceProvider(result.source);
@@ -474,8 +535,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         } else {
@@ -486,7 +547,7 @@ function Home() {
             console.log(data);
     
             try{
-                const response = await fetch('http://localhost:5000/api/selectImportPackages', {
+                const response = await fetch(API_BASE_URL+'selectImportPackages', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -499,9 +560,7 @@ function Home() {
                 }
     
                 const result = await response.json();
-                console.log(result.source);
-                console.log(result.rate);
-                console.log(result.rateList);
+
     
                 const RateList = result.rateList
     
@@ -526,8 +585,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         } else {
@@ -538,7 +597,7 @@ function Home() {
             console.log(data);
     
             try{
-                const response = await fetch('http://localhost:5000/api/selectImportSamples', {
+                const response = await fetch(API_BASE_URL+'selectImportSamples', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -579,8 +638,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -591,7 +650,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectExportDocuments', {
+            const response = await fetch(API_BASE_URL+'selectExportDocuments', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -629,8 +688,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -641,7 +700,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectExportPackages', {
+            const response = await fetch(API_BASE_URL+'selectExportPackages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -679,8 +738,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -691,7 +750,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectExportSamples', {
+            const response = await fetch(API_BASE_URL+'selectExportSamples', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -730,8 +789,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -742,7 +801,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectEComDocuments', {
+            const response = await fetch(API_BASE_URL+'selectEComDocuments', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -780,8 +839,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -792,7 +851,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectEComPackages', {
+            const response = await fetch(API_BASE_URL+'selectEComPackages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -830,8 +889,8 @@ function Home() {
         event.preventDefault();
         setLoading(true);
 
-        if (!country || !weight) {
-            alert('Please enter a country and enter weight.');
+        if (!country || !weight || !refNumber) {
+            alert('Please fill the fields.');
             setLoading(false)
             return;
         }
@@ -842,7 +901,7 @@ function Home() {
         console.log(data);
 
         try{
-            const response = await fetch('http://localhost:5000/api/selectEComSamples', {
+            const response = await fetch(API_BASE_URL+'selectEComSamples', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -999,22 +1058,23 @@ function Home() {
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1124,27 +1184,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1255,31 +1316,32 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                            <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
-                                    </table>
+                                            </table>
                                     
-                                    </div>
+                                        </div>
                                     
                                 </div>
                                     
@@ -1381,27 +1443,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1512,27 +1575,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1642,27 +1706,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1768,27 +1833,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -1899,27 +1965,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     
@@ -2030,27 +2097,28 @@ function Home() {
                                 ) : (SortedRateList.length > 0 && (
                                     <div className='flex'>
                                         <div>
-                                    <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
+                                        <table className="table-fixed bg-[#b2aeff] bg-opacity-10">
                                         <thead>
                                             <tr className="border-b border-neutral-200 bg-[#4444ff] font-medium text-white dark:border-white/10">
                                                 <th className="px-5">Service</th>
                                                 <th className="px-7">Rate</th>
+                                                <th className="px-7">Fuel Cost(%)</th>
+                                                <th className="px-7">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {SortedRateList.map((rate, key) => {
-                                            return (
+                                            {pdfData.services.map((service, key) => (
                                                 <tr
-                                                key={key}
-                                                className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
-                                                onClick={() => handleRowClick(rate, key)}
-                                                
-                                              >
-                                                <td>{rate.source}</td>
-                                                <td className="text-right">{rate.rate.toFixed(2)}</td>
-                                              </tr>
-                                            );
-                                            })}
+                                                    key={key}
+                                                    className={`${key === 0 ? 'bg-yellow-100 hover:bg-yellow-200' : 'hover:bg-blue-100'} ${key === selectedRowIndex ? '' : ''}`}
+                                                    onClick={() => handleRowClick(service, key)}
+                                                >
+                                                    <td className="text-center">{service.name}</td>
+                                                    <td className="text-center">{service.rate}</td>
+                                                    <td className="text-center">{service.fuelCost}</td>
+                                                    <td className="text-center">{service.tot}</td>
+                                                </tr>
+                                            ))}
                                         </tbody>
                                     </table>
                                     

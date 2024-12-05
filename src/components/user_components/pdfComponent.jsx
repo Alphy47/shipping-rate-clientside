@@ -2,10 +2,9 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import Blogo from '../../assets/blogo.png';
 
-
 const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country, weight, services, tableData, totalActualWeight, totalVolumetricWeight, dateTime, selectedService, reason }) => (
     <Document>
-        <Page size="A4" style={styles.page}>
+        <Page size="LETTER" style={styles.page}>
             <View style={styles.header}>
                 <Image src={Blogo} style={styles.logo} />
                 <View style={styles.container}>
@@ -26,11 +25,15 @@ const PdfComponentTemp = ({ referenceNumber, deliveryType, packageType, country,
                 <View style={styles.tableRow}>
                     <Text style={styles.tableHeader}>Service</Text>
                     <Text style={styles.tableHeader}>Rate</Text>
+                    <Text style={styles.tableHeader}>Fuel Cost(%)</Text>
+                    <Text style={styles.tableHeader}>Total</Text>
                 </View>
                 {services.map((service, index) => (
                     <View key={index} style={styles.tableRow}>
                         <Text style={styles.tableCell}>{service.name}</Text>
                         <Text style={styles.tableCell}>{service.rate}</Text>
+                        <Text style={styles.tableCell}>{service.fuelCost}</Text>
+                        <Text style={styles.tableCell}>{service.tot}</Text>
                     </View>
                 ))}
             </View>
